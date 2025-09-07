@@ -24,6 +24,13 @@ PURPLE = (128, 0, 128)
 GRAY = (128, 128, 128)
 DARK_GRAY = (64, 64, 64)
 
+
+MAX_EQ_TRANSFORMATIONS = 2
+MAX_NOP_TRANSFORMATIONS = 3
+MAX_COMBO_TRANSFORMATIONS = 1
+MAX_IBP_TRANSFORMATIONS = 2
+
+
 class TransformationType(Enum):
     NONE = 0
     SUBSTITUTION = 1  # Cambia aspetto
@@ -58,7 +65,9 @@ class SpriteManager:
             'red': RED,
             'green': GREEN,
             'yellow': YELLOW,
-            'purple': PURPLE
+            'purple': PURPLE,
+            'black': BLACK,
+            'white': WHITE
         }
         
         for color_name, color in colors.items():
@@ -223,12 +232,12 @@ class ParticleEffect:
                 screen.blit(s, (particle['x'] - size, particle['y'] - size))
 
 class Player:
-    def __init__(self, x, y, sprite_manager):
+    def __init__(self, x, y, sprite_manager, lives=3):
         self.x = x
         self.y = y
         self.speed = 4
-        self.color = 'blue'
-        self.original_color = 'blue'
+        self.color = 'blimblau'
+        self.original_color = 'blimblau'
         self.transformation = TransformationType.NONE
         self.transformation_timer = 0
         self.ghost_steps = []
@@ -237,6 +246,12 @@ class Player:
         self.sprite_manager = sprite_manager
         self.animation_frame = 0
         self.facing_right = True
+        self.lives = lives  # Aggiunta delle vite
+
+        self.rem_eq_transformations = MAX_EQ_TRANSFORMATIONS
+        self.rem_nop_transformations = MAX_NOP_TRANSFORMATIONS
+        self.rem_combo_transformations = MAX_COMBO_TRANSFORMATIONS
+        self.rem_ibp_transformations = MAX_IBP_TRANSFORMATIONS
         
     def update(self):
         # Gestione timer trasformazioni
@@ -279,27 +294,68 @@ class Player:
     def apply_transformation(self, trans_type):
         self.transformation = trans_type
         self.transformation_timer = 180  # 3 secondi a 60 FPS
-        
+
+        colors = ['red', 'green', 'yellow', 'purple', 'black', 'white']
+
         if trans_type == TransformationType.SUBSTITUTION:
             # Cambia colore/aspetto
-            colors = ['red', 'green', 'yellow', 'purple']
+            if self.rem_eq_transformations <= 0:
+                return None
             self.color = random.choice(colors)
+            self.rem_eq_transformations -= 1
         elif trans_type == TransformationType.PERMUTATION:
             # Teletrasporto in posizione casuale sicura
+            if self.rem_ibp_transformations <= 0:
+                return None
             self.teleport_random()
+            self.rem_ibp_transformations -= 1
             return ParticleEffect(self.x, self.y, 'teleport')
         elif trans_type == TransformationType.NOP_INSERTION:
             # Inizia a lasciare "passi fantasma"
+            if self.rem_nop_transformations <= 0:
+                return None
             self.ghost_steps = []
+            self.rem_nop_transformations -= 1
         elif trans_type == TransformationType.COMBO:
             # Applica combo di effetti
-            self.color = random.choice(['red', 'green', 'yellow', 'purple'])
+            if self.rem_combo_transformations <= 0:
+                return None
+            self.color = random.choice(colors)
             self.ghost_steps = []
+            self.rem_combo_transformations -= 1
         return None
     
     def teleport_random(self):
-        self.x = random.randint(100, SCREEN_WIDTH - 100)
-        self.y = random.randint(100, SCREEN_HEIGHT - 100)
+        # Teletrasporto in una posizione casuale sicura, no guardie vicine e no muri
+        safe = False
+        attempts = 0
+        while not safe and attempts < 100:
+            new_x = random.randint(20, SCREEN_WIDTH - 20 - TILE_SIZE)
+            new_y = random.randint(20, SCREEN_HEIGHT - 20 - TILE_SIZE)
+            player_rect = pygame.Rect(new_x, new_y, TILE_SIZE-4, TILE_SIZE-4)
+            safe = True
+            
+            # Controllo collisioni con muri
+            for wall in game.walls:
+                if player_rect.colliderect(wall):
+                    safe = False
+                    break
+            
+            # Controllo vicinanza guardie
+            if safe:
+                for guard in game.guards:
+                    guard_rect = pygame.Rect(guard.x, guard.y, TILE_SIZE, TILE_SIZE)
+                    if player_rect.colliderect(guard_rect.inflate(100, 100)):
+                        safe = False
+                        break
+            
+            attempts += 1
+        if safe:
+            self.x = new_x
+            self.y = new_y
+
+        
+
     
     def reset_transformation(self):
         self.transformation = TransformationType.NONE
@@ -323,6 +379,8 @@ class Player:
         
         # Usa sprite del gatto
         sprite = self.sprite_manager.sprites[f'cat_{self.color}']
+        # make it 2 times bigger
+        sprite = pygame.transform.scale(sprite, (TILE_SIZE*1.5, TILE_SIZE*1.5))
         if not self.facing_right:
             sprite = pygame.transform.flip(sprite, True, False)
         
@@ -343,25 +401,52 @@ class Guard:
         self.facing_direction = 0
         self.sprite_manager = sprite_manager
         self.animation_frame = 0
+
+        self.seconds_to_travel = 0
+        self.choicex = 0
+        self.choicey = 0
         
     def update(self, player):
         # Animazione
         self.animation_frame = (self.animation_frame + 1) % 60
         
         # Movimento lungo il percorso di pattuglia
-        if len(self.patrol_path) > 0:
-            target = self.patrol_path[self.current_target]
-            dx = target[0] - self.x
-            dy = target[1] - self.y
-            dist = math.sqrt(dx**2 + dy**2)
+        # if len(self.patrol_path) > 0:
+            # target = self.patrol_path[self.current_target]
+
+            # target = random.randint
+
+            # dx = target[0] - self.x
+            # dy = target[1] - self.y
+            # dist = math.sqrt(dx**2 + dy**2)
             
-            if dist > 5:
-                self.x += (dx / dist) * self.speed
-                self.y += (dy / dist) * self.speed
-                self.facing_direction = math.atan2(dy, dx)
-            else:
-                self.current_target = (self.current_target + 1) % len(self.patrol_path)
+            # if dist > 5:
+            #     self.x += (dx / dist) * self.speed
+            #     self.y += (dy / dist) * self.speed
+            #     self.facing_direction = math.atan2(dy, dx)
+            # else:
+            #     self.current_target = (self.current_target + 1) % len(self.patrol_path)
+
+        # generate a random patrol movement
+
+        if self.seconds_to_travel <= 0:
+            self.choicex = random.choice([-1, 0, 1])
+            self.choicey = random.choice([-1, 0, 1])
+            self.seconds_to_travel = 60
         
+        if self.choicex != 0 or self.choicey != 0:
+            
+            # prima check collisioni con muri
+            if self.x + self.choicex * self.speed < 20 or self.x + self.choicex * self.speed > SCREEN_WIDTH - 20 - TILE_SIZE:
+                self.choicex = 0
+            if self.y + self.choicey * self.speed < 20 or self.y + self.choicey * self.speed > SCREEN_HEIGHT - 20 - TILE_SIZE:
+                self.choicey = 0
+
+            self.x += self.choicex * self.speed
+            self.y += self.choicey * self.speed
+            self.facing_direction = math.atan2(self.choicey, self.choicex)
+        self.seconds_to_travel -= 1
+
         # Controllo rilevamento giocatore
         return self.detect_player(player)
     
@@ -374,16 +459,18 @@ class Guard:
         if distance < self.detection_radius:
             # Se la guardia cerca un colore specifico
             if self.detection_color is not None:
-                if player.color != self.detection_color:
+                if player.color != self.detection_color and player.color != 'blimblau':
                     return False
+            
+            
             
             # Controllo angolo di visione
             angle_to_player = math.atan2(dy, dx)
             angle_diff = abs(angle_to_player - self.facing_direction)
             if angle_diff > math.pi:
                 angle_diff = 2 * math.pi - angle_diff
-            
             if angle_diff < math.radians(self.viewing_angle / 2):
+                
                 return True
         
         return False
@@ -403,8 +490,9 @@ class Guard:
             pygame.draw.polygon(s, color, points)
             screen.blit(s, (0, 0))
         
-        # Disegna sprite guardia
+        # Disegna sprite guardia, make it 1.5 times bigger
         sprite = self.sprite_manager.sprites['guard']
+        sprite = pygame.transform.scale(sprite, (int(TILE_SIZE*1.5), int(TILE_SIZE*1.5)))
         # Ruota sprite in base alla direzione
         angle = -math.degrees(self.facing_direction) - 90
         rotated_sprite = pygame.transform.rotate(sprite, angle)
@@ -449,11 +537,213 @@ class Game:
         self.level = 1
         self.sprite_manager = SpriteManager()
         self.particle_effects = []
-        self.init_level()
-        
+
+        self.player_name = "Sonic Feet"  # Nome di default del giocatore
+
+        self.menu()
+        # self.init_level()
+    
+    def menu(self):
+        waiting = True
+        while waiting:
+            self.screen.fill(BLACK)
+            title = self.font.render("Metamorphic Maze - Sharper Night", True, WHITE)
+            instruction = self.small_font.render("Premi SPAZIO per iniziare", True, WHITE)
+            regolamento = self.small_font.render("Premi O per le istruzioni", True, WHITE)
+            background_scientifico = self.small_font.render("Premi B per leggere il signficiato scientifico di questo gioco", True, WHITE)
+            classifica = self.small_font.render("Premi C per la classifica", True, WHITE)
+
+            small_description1 = self.small_font.render("Sei Garfield, un virus informatico che deve infiltrarsi in un sistema sorvegliato da antivirus.", True, WHITE)
+            small_description2 = self.small_font.render("Usa le trasformazioni metamorfiche per evitare di essere rilevato e raggiungere il server.", True, WHITE)
+
+
+            self.screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, SCREEN_HEIGHT//2 - 50))
+            self.screen.blit(instruction, (SCREEN_WIDTH//2 - instruction.get_width()//2, SCREEN_HEIGHT//2 + 10))
+            self.screen.blit(regolamento, (SCREEN_WIDTH//2 - regolamento.get_width()//2, SCREEN_HEIGHT//2 + 40))
+            self.screen.blit(background_scientifico, (SCREEN_WIDTH//2 - background_scientifico.get_width()//2, SCREEN_HEIGHT//2 + 70))
+            self.screen.blit(classifica, (SCREEN_WIDTH//2 - classifica.get_width()//2, SCREEN_HEIGHT//2 + 100))
+            # vai a capo
+            self.screen.blit(small_description1, (SCREEN_WIDTH//2 - small_description1.get_width()//2, SCREEN_HEIGHT//2 + 120))
+            self.screen.blit(small_description2, (SCREEN_WIDTH//2 - small_description2.get_width()//2, SCREEN_HEIGHT//2 + 150))
+            pygame.display.flip()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    waiting = False
+                    self.running = False
+                    
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_SPACE:
+                        waiting = False
+                        # first ask for player name
+                        self.player_name = ""
+                        asking_name = True
+                        while asking_name:
+                            self.screen.fill(BLACK)
+                            prompt = self.small_font.render("Inserisci il tuo nome (max 15 caratteri): " + self.player_name, True, WHITE)
+                            self.screen.blit(prompt, (SCREEN_WIDTH//2 - prompt.get_width()//2, SCREEN_HEIGHT//2))
+                            pygame.display.flip()
+                            for event in pygame.event.get():
+                                if event.type == pygame.QUIT:
+                                    asking_name = False
+                                    waiting = False
+                                    self.running = False
+                                elif event.type == pygame.KEYDOWN:
+                                    if event.key == pygame.K_RETURN:
+                                        if len(self.player_name) > 0:
+                                            asking_name = False
+                                    elif event.key == pygame.K_BACKSPACE:
+                                        self.player_name = self.player_name[:-1]
+                                    else:
+                                        if len(self.player_name) < 15 and event.unicode.isprintable():
+                                            self.player_name += event.unicode
+
+                        self.init_level()
+                    if event.key == pygame.K_b or event.key == pygame.KSCAN_B:
+                        string = '''
+Il metamorfismo è una tecnica utilizzata dagli autori di malware (software malevolo, comunemente detti virus informatici) per 
+aggirare gli strumenti di sicurezza come antivirus o EDR.
+
+Gli antivirus, infatti, rilevano un malware principalmente riconoscendo determinati tratti distintivi (signature detection), 
+come specifiche istruzioni o sequenze di byte che compaiono solo in quel programma.
+Se questi tratti distintivi vengono modificati senza alterare il funzionamento originale, 
+si ottiene un malware che compie le stesse azioni, ma in modo diverso, e che quindi può eludere la rilevazione.
+
+Per raggiungere questo obiettivo esistono diverse tecniche. 
+Noi abbiamo realizzato un software che ne implementa 4 già conosciute e 1 da noi inventata.E' anche possibile combinarle.
+
+Ecco quali sono e cosa fanno, in breve:
+
+1)Equal Instruction Substitution
+Sostituisce alcune istruzioni con altre che hanno lo stesso identico effetto.
+
+2)NOP Insertion
+Inserisce istruzioni che non alterano in alcun modo il comportamento del programma.
+
+3)Instruction Block Permutation
+Divide il programma in blocchi di istruzioni e ne cambia l’ordine. Per mantenere il corretto flusso di esecuzione, 
+vengono inseriti salti (JMP) alla fine dei blocchi, così che il programma funzioni come prima, ma con una struttura diversa.
+
+4)Bogus Control Flow
+Aggiunge interi blocchi di codice inutili che non verranno mai eseguiti. 
+Ogni blocco è preceduto da una condizione che forziamo sempre a vera o falsa, in modo da impedirne l’esecuzione.
+ Questo complica anche l’analisi statica del codice.
+
+5)Position Independent Instruction (tecnica originale)
+Permette di rimescolare non solo i blocchi, ma ogni singola istruzione. 
+È una tecnica molto potente ma anche estremamente invasiva, perché richiede che ogni istruzione restituisca il controllo a
+un’unità centrale che gestisce il flusso del programma.
+'''
+                    # make it scrollable
+                        waiting_scientifico = True
+                        lines = string.split('\n')
+                        offset = 0
+                        while waiting_scientifico:
+                            self.screen.fill(BLACK)
+                            y = SCREEN_HEIGHT//2 - len(lines)*10 + offset
+                            for line in lines:
+                                text = self.small_font.render(line, True, WHITE)
+                                self.screen.blit(text, (50, y))
+                                y += 20
+                            pygame.display.flip()
+                            for event in pygame.event.get():
+                                if event.type == pygame.QUIT:
+                                    waiting_scientifico = False
+                                    waiting = False
+                                    self.running = False
+                                elif event.type == pygame.KEYDOWN:
+                                    if event.key == pygame.K_r:
+                                        waiting_scientifico = False
+                                    if event.key == pygame.K_ESCAPE:
+                                        waiting_scientifico = False
+                                        waiting = False
+                                        self.running = False
+                                    if event.key == pygame.K_UP:
+                                        offset += 20
+                                    if event.key == pygame.K_DOWN:
+                                        offset -= 20
+                                    if event.key == pygame.K_b or event.key == pygame.KSCAN_B:
+                                        offset = 0
+                                        waiting_scientifico = False
+                        continue
+                    if event.key == pygame.K_c or event.key == pygame.KSCAN_C:
+                        show_first_n = 10
+                        #  leggi classifica da file classifica.txt
+                        waiting_classifica = True
+                        if not os.path.exists("classifica.txt"):
+                            with open("classifica.txt", "w") as f:
+                                f.write("Nessun punteggio ancora.\n")
+                        with open("classifica.txt", "r") as f:
+                            lines = f.readlines()
+                        while waiting_classifica:
+                            self.screen.fill(BLACK)
+                            title = self.font.render("Classifica", True, WHITE)
+                            self.screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 50))
+                            y = 100
+                            for x,line in enumerate(lines):
+                                if x >= show_first_n:
+                                    break
+                                text = self.small_font.render(line.strip(), True, WHITE)
+                                self.screen.blit(text, (SCREEN_WIDTH//2 - text.get_width()//2, y))
+                                y += 30
+                            instruction = self.small_font.render("Premi R per tornare al menu", True, WHITE)
+                            self.screen.blit(instruction, (SCREEN_WIDTH//2 - instruction.get_width()//2, SCREEN_HEIGHT - 50))
+                            pygame.display.flip()
+                            for event in pygame.event.get():
+                                if event.type == pygame.QUIT:
+                                    waiting_classifica = False
+                                    waiting = False
+                                    self.running = False
+                                elif event.type == pygame.KEYDOWN:
+                                    if event.key == pygame.K_r:
+                                        waiting_classifica = False
+                                    if event.key == pygame.K_ESCAPE:
+                                        waiting_classifica = False
+                                        waiting = False
+                                        self.running = False
+                        continue
+                    if event.key == pygame.K_o or event.key == pygame.KSCAN_O:
+                    # mostra le istruzioni
+                        waiting_instr = True
+                        while waiting_instr:
+                            self.screen.fill(BLACK)
+                            lines = [
+                                "Istruzioni:",
+                                "WASD/Frecce: Muovi",
+                                "1: Camuffamento (Substitution)",
+                                "2: Teletrasporto (Permutation)",
+                                "3: Passi Fantasma (NOP Insertion)",
+                                "4: Combo (Combo)",
+                                "R: Reset Livello",
+                                "Premi R per tornare al menu"
+
+                                "Premi ESC per Tornare al menu"
+                            ]
+                            y = SCREEN_HEIGHT//2 - len(lines)*20
+                            for line in lines:
+                                text = self.small_font.render(line, True, WHITE)
+                                self.screen.blit(text, (SCREEN_WIDTH//2 - text.get_width()//2, y))
+                                y += 30
+                            pygame.display.flip()
+                            for event in pygame.event.get():
+                                if event.type == pygame.QUIT:
+                                    waiting_instr = False
+                                    waiting = False
+                                    self.running = False
+                                elif event.type == pygame.KEYDOWN:
+                                    if event.key == pygame.K_r:
+                                        waiting_instr = False
+                                    if event.key == pygame.K_ESCAPE:
+                                        waiting_instr = False
+                                        waiting = False
+                                        self.running = False
+
     def init_level(self):
         # Inizializza livello
-        self.player = Player(100, 100, self.sprite_manager)
+        if self.level == 1:
+            self.player = Player(100, 100, self.sprite_manager, lives=3)
+        else:
+            new_lives = self.player.lives + 1 if self.player.lives < 5 else self.player.lives
+            self.player = Player(100, 100, self.sprite_manager, lives=new_lives)
         self.goal = Goal(SCREEN_WIDTH - 150, SCREEN_HEIGHT - 150, self.sprite_manager)
         self.guards = []
         self.walls = []
@@ -472,28 +762,13 @@ class Game:
         self.walls.append(pygame.Rect(300, 500, 400, 20))
         
         # Aggiungi guardie basate sul livello
-        if self.level == 1:
-            # Livello 1: Guardia semplice
-            self.guards.append(Guard(400, 300, 
-                                   [(400, 300), (400, 500), (600, 500), (600, 300)],
-                                   self.sprite_manager))
-        elif self.level == 2:
-            # Livello 2: Guardie con rilevamento colore
-            self.guards.append(Guard(300, 300, 
-                                   [(300, 300), (500, 300)], 
-                                   self.sprite_manager,
-                                   detection_color='blue'))
-            self.guards.append(Guard(500, 400, 
-                                   [(500, 400), (300, 400)], 
-                                   self.sprite_manager,
-                                   detection_color='red'))
-        else:
+ 
             # Livelli successivi
-            for i in range(min(self.level, 5)):
-                x = random.randint(200, SCREEN_WIDTH - 200)
-                y = random.randint(200, SCREEN_HEIGHT - 200)
-                path = self.generate_random_path(x, y)
-                self.guards.append(Guard(x, y, path, self.sprite_manager, detection_color=None))
+        for i in range(min(self.level + 2, 12)):
+            x = random.randint(200, SCREEN_WIDTH - 200)
+            y = random.randint(200, SCREEN_HEIGHT - 200)
+            path = self.generate_random_path(x, y)
+            self.guards.append(Guard(x, y, path, self.sprite_manager, detection_color=random.choice(['blue', 'red', 'green', 'yellow', 'purple', 'black', 'white'])))
     
     def generate_random_path(self, start_x, start_y):
         path = [(start_x, start_y)]
@@ -566,7 +841,13 @@ class Game:
         if player_rect.colliderect(goal_rect):
             self.player.win = True
             self.level += 1
+            self.player.rem_combo_transformations = MAX_COMBO_TRANSFORMATIONS
+            self.player.rem_eq_transformations = MAX_EQ_TRANSFORMATIONS
+            self.player.rem_nop_transformations = MAX_NOP_TRANSFORMATIONS
+            self.player.rem_ibp_transformations = MAX_IBP_TRANSFORMATIONS
+
             self.init_level()
+
     
     def draw_background(self):
         """Disegna lo sfondo con tiles"""
@@ -612,16 +893,56 @@ class Game:
         # Livello e stato
         level_text = self.font.render(f"Livello: {self.level}", True, WHITE)
         self.screen.blit(level_text, (10, 10))
+
+        lives_text = self.font.render(f"Vite rimaste: {self.player.lives}", True, WHITE)
+        self.screen.blit(lives_text, (10, 40))
         
+        # scrivi le trasformazioni rimanenti
+        rem_transformations = self.font.render(f"Rimanenti - Camuffamenti: {self.player.rem_eq_transformations} | Teletrasporti: {self.player.rem_ibp_transformations} | Passi Fantasma: {self.player.rem_nop_transformations} | Combo: {self.player.rem_combo_transformations}", True, WHITE)
+        self.screen.blit(rem_transformations, (10, SCREEN_HEIGHT - 30))
         if self.player.detected:
             warning = self.font.render("RILEVATO!", True, RED)
             x = SCREEN_WIDTH//2 - warning.get_width()//2
             pygame.draw.rect(self.screen, BLACK, (x-10, 45, warning.get_width()+20, 40))
             self.screen.blit(warning, (x, 50))
+            # togli una vita
+            self.player.lives -= 1
+            #allontana il giocatore
+            self.player.x = 30
+            self.player.y = 30
+            if self.player.lives <= 0:
+                game_over = self.font.render("GAME OVER! Premi R per riprovare. o Chiudi per uscire.", True, RED)
+                x = SCREEN_WIDTH//2 - game_over.get_width()//2
+                pygame.draw.rect(self.screen, BLACK, (x-10, SCREEN_HEIGHT//2 - 30, game_over.get_width()+20, 40))
+                self.screen.blit(game_over, (x, SCREEN_HEIGHT//2 - 20))
+
+                # Write results to classifica.txt
+                with open("classifica.txt", "a") as f:
+                    f.write(f"{self.player_name} - Livello raggiunto: {self.level}\n")
+                # wait for a key to close the game
+                pygame.display.flip()
+                waiting = True
+                while waiting:
+                    for event in pygame.event.get():
+                        if event.type == pygame.QUIT:
+                            waiting = False
+                            self.running = False
+                        elif event.type == pygame.KEYDOWN:
+                            if event.key == pygame.K_r:
+                                waiting = False
+                                # self.player.lives = 3
+                                self.level = 1
+                                self.init_level()
+
+                # self.running = False
     
     def draw(self):
         # Disegna sfondo
         self.draw_background()
+
+        #disegna le vite in alto a destra
+        lives_text = self.font.render(f"Vite: {self.player.lives}", True, WHITE)
+        self.screen.blit(lives_text, (SCREEN_WIDTH - lives_text.get_width() - 10, 10))
         
         # Disegna muri con tile sprite
         for wall in self.walls:
@@ -668,7 +989,7 @@ def load_custom_sprites(sprite_manager):
         os.makedirs(asset_path)
         print(f"Creata cartella '{asset_path}' - aggiungi qui le tue immagini!")
         print("Nomi file suggeriti:")
-        print("  - cat_blue.png, cat_red.png, etc. (32x32 px)")
+        print("  - cat_blimblau.png, cat_red.png, etc. (32x32 px)")
         print("  - guard.png (32x32 px)")
         print("  - background.png (1024x768 px)")
         print("  - wall_tile.png (32x32 px)")
@@ -678,7 +999,7 @@ def load_custom_sprites(sprite_manager):
     
     # Dizionario dei file da caricare
     sprites_to_load = {
-        'cat_blue': 'cat_blue.png',
+        'cat_blimblau': 'cat_blimblau.png',
         'cat_red': 'cat_red.png',
         'cat_green': 'cat_green.png',
         'cat_yellow': 'cat_yellow.png',
@@ -695,6 +1016,11 @@ def load_custom_sprites(sprite_manager):
         if os.path.exists(filepath):
             try:
                 img = pygame.image.load(filepath)
+
+                # make the cat_blimblau and guard bigger
+                # img = img.convert_alpha()
+                # img = pygame.transform.scale(img, (img.get_width()*4, img.get_height()*4))
+
                 
                 # Ridimensiona se necessario
                 if sprite_name == 'goal':
@@ -713,6 +1039,10 @@ def load_custom_sprites(sprite_manager):
 
 # Main
 if __name__ == "__main__":
+    # menu di benvenuto, sempre in Pygame
+   
+
+
     game = Game()
     
     # Prova a caricare sprite personalizzati
