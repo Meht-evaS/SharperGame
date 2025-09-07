@@ -679,6 +679,8 @@ un’unità centrale che gestisce il flusso del programma.
                             title = self.font.render("Classifica", True, WHITE)
                             self.screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 50))
                             y = 100
+                            # sort lines by level reached (assuming format "name: level")
+                            lines = sorted(lines, key=lambda x: int(x.split(':')[-1].strip()), reverse=True)
                             for x,line in enumerate(lines):
                                 if x >= show_first_n:
                                     break
