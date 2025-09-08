@@ -231,6 +231,53 @@ class ParticleEffect:
                                  (size, size), size)
                 screen.blit(s, (particle['x'] - size, particle['y'] - size))
 
+
+class NopPulse:
+    """Impulso NOP: piccolo proiettile che respinge le guardie"""
+    def __init__(self, x, y, angle, speed=9, life=40, radius=22):
+        self.x = x
+        self.y = y
+        self.vx = math.cos(angle) * speed
+        self.vy = math.sin(angle) * speed
+        self.life = life
+        self.radius = radius  # raggio di effetto/colpo
+
+    def update(self, walls):
+        # movimento semplice; rimbalzo leggero sui bordi
+        self.x += self.vx
+        self.y += self.vy
+        self.life -= 1
+
+        # limiti schermo
+        if self.x < 20 or self.x > SCREEN_WIDTH - 20:
+            self.vx *= -1
+        if self.y < 20 or self.y > SCREEN_HEIGHT - 20:
+            self.vy *= -1
+
+        # opzionale: fermati se colpisci un muro
+        pulse_rect = pygame.Rect(int(self.x - 4), int(self.y - 4), 8, 8)
+        for w in walls:
+            if pulse_rect.colliderect(w):
+                self.life = 0
+                break
+
+        return self.life > 0
+
+    def draw(self, screen):
+        # piccolo glow ciano per richiamare il “NOP”
+        s = pygame.Surface((self.radius*2, self.radius*2), pygame.SRCALPHA)
+        pygame.draw.circle(s, (0, 255, 255, 60), (self.radius, self.radius), self.radius)
+        pygame.draw.circle(s, (255, 255, 255, 180), (self.radius, self.radius), 3)
+        # write 0x90 inside the circle
+        font = pygame.font.Font(None, 20)
+        text = font.render("0x90", True, (255, 255, 255))
+        text_rect = text.get_rect(center=(self.radius, self.radius))
+        s.blit(text, text_rect)
+        
+
+        screen.blit(s, (self.x - self.radius, self.y - self.radius))
+        
+
 class Player:
     def __init__(self, x, y, sprite_manager, lives=3):
         self.x = x
@@ -247,6 +294,8 @@ class Player:
         self.animation_frame = 0
         self.facing_right = True
         self.lives = lives  # Aggiunta delle vite
+
+        self.dir = [1, 0]
 
         self.rem_eq_transformations = MAX_EQ_TRANSFORMATIONS
         self.rem_nop_transformations = MAX_NOP_TRANSFORMATIONS
@@ -288,6 +337,9 @@ class Player:
                 if len(self.ghost_steps) > 5:
                     self.ghost_steps.pop(0)
             
+            if dx != 0 or dy != 0:
+                mag = math.hypot(dx, dy)
+                self.dir = [dx / mag, dy / mag]
             self.x = new_x
             self.y = new_y
     
@@ -311,10 +363,25 @@ class Player:
             self.rem_ibp_transformations -= 1
             return ParticleEffect(self.x, self.y, 'teleport')
         elif trans_type == TransformationType.NOP_INSERTION:
-            # Inizia a lasciare "passi fantasma"
             if self.rem_nop_transformations <= 0:
                 return None
+            base_angle = math.atan2(self.dir[1], self.dir[0])
+            for off in (-0.25, 0.0, 0.25):  # ~±14°
+                ang = base_angle + off
+                # centro dal petto del gatto
+                cx = self.x + TILE_SIZE * 0.75
+                cy = self.y + TILE_SIZE * 0.75
+                game.nop_pulses.append(NopPulse(cx, cy, ang))
+
+            # tracce fantasma come prima (estetica NOP)
             self.ghost_steps = []
+
+            self.rem_nop_transformations -= 1
+            return None
+            # Spara NOP che allontanano le guardie
+
+
+
             self.rem_nop_transformations -= 1
         elif trans_type == TransformationType.COMBO:
             # Applica combo di effetti
@@ -537,6 +604,9 @@ class Game:
         self.level = 1
         self.sprite_manager = SpriteManager()
         self.particle_effects = []
+
+        self.nop_pulses = []
+
 
         self.player_name = "Sonic Feet"  # Nome di default del giocatore
 
@@ -762,11 +832,22 @@ un’unità centrale che gestisce il flusso del programma.
         self.walls.append(pygame.Rect(400, 200, 200, 20))
         self.walls.append(pygame.Rect(600, 100, 20, 300))
         self.walls.append(pygame.Rect(300, 500, 400, 20))
-        
+
+        # Aggiungi altre strutture di muri per rendere il labirinto più complesso
+        self.walls.append(pygame.Rect(150, 300, 300, 20))
+        self.walls.append(pygame.Rect(500, 400, 20, 200))
+        self.walls.append(pygame.Rect(700, 250, 20, 300))
+        self.walls.append(pygame.Rect(250, 150, 20, 200))
+        self.walls.append(pygame.Rect(350, 350, 200, 20))
+        self.walls.append(pygame.Rect(100, 450, 150, 20))
+        self.walls.append(pygame.Rect(450, 100, 20, 150))
+        self.walls.append(pygame.Rect(600, 500, 150, 20))
+
+
         # Aggiungi guardie basate sul livello
  
             # Livelli successivi
-        for i in range(min(self.level + 2, 12)):
+        for i in range(min(self.level + 2, 15)):
             x = random.randint(200, SCREEN_WIDTH - 200)
             y = random.randint(200, SCREEN_HEIGHT - 200)
             path = self.generate_random_path(x, y)
@@ -836,6 +917,39 @@ un’unità centrale che gestisce il flusso del programma.
         
         # Update goal
         self.goal.update()
+    
+        # Aggiorna impulsi NOP e collisioni con guardie
+        for pulse in self.nop_pulses[:]:
+            alive = pulse.update(self.walls)
+            # collisione con guardie: se entro raggio, respingi e consuma l'impulso
+            hit_something = False
+            for guard in self.guards:
+                gx = guard.x + TILE_SIZE / 2
+                gy = guard.y + TILE_SIZE / 2
+                d = math.hypot(gx - pulse.x, gy - pulse.y)
+                if d <= pulse.radius + TILE_SIZE * 0.5:
+                    # spinta: più vicino => più forte
+                    ux = (gx - pulse.x) / (d + 1e-6)
+                    uy = (gy - pulse.y) / (d + 1e-6)
+                    push_strength = 80  # pixel di “teletrascinamento”
+                    # attenua in base alla distanza (entro raggio)
+                    atten = max(0.35, 1.0 - d / (pulse.radius + TILE_SIZE * 0.5))
+                    dx = ux * push_strength * atten
+                    dy = uy * push_strength * atten
+
+                    # applica spostamento, clamp ai bordi
+                    guard.x = max(20, min(SCREEN_WIDTH - 20 - TILE_SIZE, guard.x + dx))
+                    guard.y = max(20, min(SCREEN_HEIGHT - 20 - TILE_SIZE, guard.y + dy))
+
+                    # “disorienta” per un attimo: nuova direzione opposta al player
+                    guard.choicex = int(math.copysign(1, ux)) if abs(ux) > 0.2 else 0
+                    guard.choicey = int(math.copysign(1, uy)) if abs(uy) > 0.2 else 0
+                    guard.seconds_to_travel = 30  # mezzo secondo a 60 FPS
+                    hit_something = True
+
+            if not alive or hit_something:
+                self.nop_pulses.remove(pulse)
+
         
         # Controllo vittoria
         player_rect = pygame.Rect(self.player.x, self.player.y, TILE_SIZE, TILE_SIZE)
@@ -849,6 +963,8 @@ un’unità centrale che gestisce il flusso del programma.
             self.player.rem_ibp_transformations = MAX_IBP_TRANSFORMATIONS
 
             self.init_level()
+
+
 
     
     def draw_background(self):
@@ -900,7 +1016,7 @@ un’unità centrale che gestisce il flusso del programma.
         self.screen.blit(lives_text, (10, 40))
         
         # scrivi le trasformazioni rimanenti
-        rem_transformations = self.font.render(f"Rimanenti - Camuffamenti: {self.player.rem_eq_transformations} | Teletrasporti: {self.player.rem_ibp_transformations} | Passi Fantasma: {self.player.rem_nop_transformations} | Combo: {self.player.rem_combo_transformations}", True, WHITE)
+        rem_transformations = self.font.render(f"Rimanenti - Camuffamenti: {self.player.rem_eq_transformations} | Teletrasporti: {self.player.rem_ibp_transformations} | NOP raygun: {self.player.rem_nop_transformations} | Combo: {self.player.rem_combo_transformations}", True, WHITE)
         self.screen.blit(rem_transformations, (10, SCREEN_HEIGHT - 30))
         if self.player.detected:
             warning = self.font.render("RILEVATO!", True, RED)
@@ -958,6 +1074,10 @@ un’unità centrale che gestisce il flusso del programma.
         for guard in self.guards:
             guard.draw(self.screen)
         self.player.draw(self.screen)
+
+        for pulse in self.nop_pulses:
+            pulse.draw(self.screen)
+
         
         # Disegna effetti particellari
         for effect in self.particle_effects:
