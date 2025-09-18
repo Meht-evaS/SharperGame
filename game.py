@@ -17,7 +17,7 @@ SIDEBAR_WIDTH = 244
 GAME_WIDTH = SCREEN_WIDTH - SIDEBAR_WIDTH
 GAME_HEIGHT = SCREEN_HEIGHT
 
-TILE_SIZE = 32
+TILE_SIZE = 40
 FPS = 60
 
 # Colori
@@ -811,9 +811,9 @@ un’unità centrale che gestisce il flusso del programma.
                             lines = [
                                 "Istruzioni:",
                                 "WASD/Frecce: Muovi",
-                                "1: Camuffamento (Substitution)",
-                                "2: Teletrasporto (Permutation)",
-                                "3: NOP Raygun (NOP Insertion)",
+                                "1: Camuffamento (Substitution, camuffa il colore, attento pero', ogni guardia rileva un colore specifico)",
+                                "2: Teletrasporto (Permutation, teletrasporta in una zona casuale sicura)",
+                                "3: NOP Raygun (NOP Insertion, fa girare le guardie)",
                                 "4: Combo (Combo)",
                                 "R: Reset Livello",
                                 "Premi R per tornare al menu"
@@ -823,7 +823,7 @@ un’unità centrale che gestisce il flusso del programma.
                             y = SCREEN_HEIGHT//2 - len(lines)*20
                             for line in lines:
                                 text = self.small_font.render(line, True, WHITE)
-                                self.screen.blit(text, (SCREEN_WIDTH//2 - text.get_width()//2, y))
+                                self.screen.blit(text, (180, y))
                                 y += 30
                             pygame.display.flip()
                             for event in pygame.event.get():
