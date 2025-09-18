@@ -1052,6 +1052,10 @@ un’unità centrale che gestisce il flusso del programma.
             y += 30
         
         # draw live scoreboard
+        ui_panel2 = pygame.Surface((300, 300), pygame.SRCALPHA)
+        ui_panel2.fill((0, 0, 0, 180))
+        self.screen.blit(ui_panel2, (SCREEN_WIDTH - 200, SCREEN_HEIGHT - 600))
+
         scoreboard_text = "CLASSIFICA TOP 10"
         top_10_string = []
         with open("classifica.txt", "r") as f:
@@ -1068,7 +1072,7 @@ un’unità centrale che gestisce il flusso del programma.
         self.screen.blit(scoreboard, (SCREEN_WIDTH - 200, SCREEN_HEIGHT - 600))
         base_y = SCREEN_HEIGHT - 570
         for i in top_10_string:
-            text = self.small_font.render(i.strip(), True, WHITE)
+            text = self.small_font.render(i, True, WHITE)
             self.screen.blit(text, (SCREEN_WIDTH - 200, base_y))
             base_y += 20
 
