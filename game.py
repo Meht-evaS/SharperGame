@@ -8,8 +8,15 @@ from enum import Enum
 pygame.init()
 
 # Costanti
-SCREEN_WIDTH = 1156
+SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 768
+
+# WINDOW_WIDTH = 1400        # larghezza totale della finestra (gioco + sidebar)
+# WINDOW_HEIGHT = 768
+SIDEBAR_WIDTH = 244
+GAME_WIDTH = SCREEN_WIDTH - SIDEBAR_WIDTH
+GAME_HEIGHT = SCREEN_HEIGHT
+
 TILE_SIZE = 32
 FPS = 60
 
@@ -35,7 +42,7 @@ class TransformationType(Enum):
     NONE = 0
     SUBSTITUTION = 1  # Cambia aspetto
     PERMUTATION = 2   # Teletrasporto
-    NOP_INSERTION = 3 # Passi fantasma
+    NOP_INSERTION = 3 # NOP Raygun
     COMBO = 4         # Combinazione
     POSITION_INDEPENDENT = 5
 
@@ -250,9 +257,9 @@ class NopPulse:
         self.life -= 1
 
         # limiti schermo
-        if self.x < 20 or self.x > SCREEN_WIDTH - 20:
+        if self.x < 20 or self.x > GAME_WIDTH - 20:
             self.vx *= -1
-        if self.y < 20 or self.y > SCREEN_HEIGHT - 20:
+        if self.y < 20 or self.y > GAME_HEIGHT - 20:
             self.vy *= -1
 
         # opzionale: fermati se colpisci un muro
@@ -402,8 +409,8 @@ class Player:
         safe = False
         attempts = 0
         while not safe and attempts < 100:
-            new_x = random.randint(20, SCREEN_WIDTH - 20 - TILE_SIZE)
-            new_y = random.randint(20, SCREEN_HEIGHT - 20 - TILE_SIZE)
+            new_x = random.randint(20, GAME_WIDTH - 20 - TILE_SIZE)
+            new_y = random.randint(20, GAME_HEIGHT - 20 - TILE_SIZE)
             player_rect = pygame.Rect(new_x, new_y, TILE_SIZE-4, TILE_SIZE-4)
             safe = True
             
@@ -509,9 +516,9 @@ class Guard:
         if self.choicex != 0 or self.choicey != 0:
             
             # prima check collisioni con muri
-            if self.x + self.choicex * self.speed < 20 or self.x + self.choicex * self.speed > SCREEN_WIDTH - 20 - TILE_SIZE:
+            if self.x + self.choicex * self.speed < 20 or self.x + self.choicex * self.speed > GAME_WIDTH - 20 - TILE_SIZE:
                 self.choicex = 0
-            if self.y + self.choicey * self.speed < 20 or self.y + self.choicey * self.speed > SCREEN_HEIGHT - 20 - TILE_SIZE:
+            if self.y + self.choicey * self.speed < 20 or self.y + self.choicey * self.speed > GAME_HEIGHT - 20 - TILE_SIZE:
                 self.choicey = 0
 
             self.x += self.choicex * self.speed
@@ -557,7 +564,7 @@ class Guard:
             points.append((end_x, end_y))
         
         if len(points) > 2:
-            s = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            s = pygame.Surface((GAME_WIDTH, GAME_HEIGHT), pygame.SRCALPHA)
             color = (255, 50, 50, 40)# if not self.detection_color else (*self.detection_color, 40)
             pygame.draw.polygon(s, color, points)
             screen.blit(s, (0, 0))
@@ -767,7 +774,7 @@ un’unità centrale che gestisce il flusso del programma.
                             self.screen.fill(BLACK)
                             # bg_img = pygame.image.load("assets/CyberGarflieldpng.png")
                             self.screen.blit(bg_img, (0, 0))
-                            title = self.font.render("Classifica", True, WHITE)
+                            title = self.font.render("Classifica TOP 10", True, WHITE)
                             self.screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 50))
                             y = 100
                             # sort lines by level reached (assuming format "name: level")
@@ -806,7 +813,7 @@ un’unità centrale che gestisce il flusso del programma.
                                 "WASD/Frecce: Muovi",
                                 "1: Camuffamento (Substitution)",
                                 "2: Teletrasporto (Permutation)",
-                                "3: Passi Fantasma (NOP Insertion)",
+                                "3: NOP Raygun (NOP Insertion)",
                                 "4: Combo (Combo)",
                                 "R: Reset Livello",
                                 "Premi R per tornare al menu"
@@ -839,16 +846,16 @@ un’unità centrale che gestisce il flusso del programma.
         else:
             new_lives = self.player.lives + 1 if self.player.lives < 5 else self.player.lives
             self.player = Player(100, 100, self.sprite_manager, lives=new_lives)
-        self.goal = Goal(SCREEN_WIDTH - 150, SCREEN_HEIGHT - 150, self.sprite_manager)
+        self.goal = Goal(GAME_WIDTH - 150, GAME_HEIGHT - 150, self.sprite_manager)
         self.guards = []
         self.walls = []
         
         # Crea muri del labirinto
         # Bordi
-        self.walls.append(pygame.Rect(0, 0, SCREEN_WIDTH, 20))
-        self.walls.append(pygame.Rect(0, SCREEN_HEIGHT-20, SCREEN_WIDTH, 20))
-        self.walls.append(pygame.Rect(0, 0, 20, SCREEN_HEIGHT))
-        self.walls.append(pygame.Rect(SCREEN_WIDTH-20, 0, 20, SCREEN_HEIGHT))
+        self.walls.append(pygame.Rect(0, 0, GAME_WIDTH, 20))
+        self.walls.append(pygame.Rect(0, GAME_HEIGHT-20, GAME_WIDTH, 20))
+        self.walls.append(pygame.Rect(0, 0, 20, GAME_HEIGHT))
+        self.walls.append(pygame.Rect(GAME_WIDTH-20, 0, 20, GAME_HEIGHT))
         
         # Muri interni
         self.walls.append(pygame.Rect(200, 100, 20, 300))
@@ -872,21 +879,24 @@ un’unità centrale che gestisce il flusso del programma.
         self.walls.append(pygame.Rect(900, 100, 20, 300))
         self.walls.append(pygame.Rect(850, 400, 150, 20))
 
+        # make 2 walls. one on y = GAME_HEIGHT - 180 horizontal and to x = 300
+        self.walls.append(pygame.Rect(300, GAME_HEIGHT - 180, 400, 20))
+
 
         # Aggiungi guardie basate sul livello
  
             # Livelli successivi
         for i in range(min(self.level + 2, 15)):
-            x = random.randint(200, SCREEN_WIDTH - 200)
-            y = random.randint(200, SCREEN_HEIGHT - 200)
+            x = random.randint(200, GAME_WIDTH - 200)
+            y = random.randint(200, GAME_HEIGHT - 200)
             path = self.generate_random_path(x, y)
             self.guards.append(Guard(x, y, path, self.sprite_manager, detection_color=random.choice(['blue', 'red', 'green', 'yellow', 'purple', 'black', 'white'])))
     
     def generate_random_path(self, start_x, start_y):
         path = [(start_x, start_y)]
         for _ in range(3):
-            x = random.randint(100, SCREEN_WIDTH - 100)
-            y = random.randint(100, SCREEN_HEIGHT - 100)
+            x = random.randint(100, GAME_WIDTH - 100)
+            y = random.randint(100, GAME_HEIGHT - 100)
             path.append((x, y))
         return path
     
@@ -971,8 +981,8 @@ un’unità centrale che gestisce il flusso del programma.
                     dy = uy * push_strength * atten
 
                     # applica spostamento, clamp ai bordi
-                    guard.x = max(20, min(SCREEN_WIDTH - 20 - TILE_SIZE, guard.x + dx))
-                    guard.y = max(20, min(SCREEN_HEIGHT - 20 - TILE_SIZE, guard.y + dy))
+                    guard.x = max(20, min(GAME_WIDTH - 20 - TILE_SIZE, guard.x + dx))
+                    guard.y = max(20, min(GAME_HEIGHT - 20 - TILE_SIZE, guard.y + dy))
 
                     # “disorienta” per un attimo: nuova direzione opposta al player
                     guard.choicex = int(math.copysign(1, ux)) if abs(ux) > 0.2 else 0
@@ -1002,8 +1012,8 @@ un’unità centrale che gestisce il flusso del programma.
     
     def draw_background(self):
         """Disegna lo sfondo con tiles"""
-        for y in range(0, SCREEN_HEIGHT, TILE_SIZE):
-            for x in range(0, SCREEN_WIDTH, TILE_SIZE):
+        for y in range(0, GAME_HEIGHT, TILE_SIZE):
+            for x in range(0, GAME_WIDTH, TILE_SIZE):
                 # Alterna tra floor e circuit tiles per creare pattern
                 if (x // TILE_SIZE + y // TILE_SIZE) % 3 == 0:
                     self.screen.blit(self.sprite_manager.sprites['circuit'], (x, y))
@@ -1014,7 +1024,7 @@ un’unità centrale che gestisce il flusso del programma.
         # Background pannello UI
         ui_panel = pygame.Surface((250, 200), pygame.SRCALPHA)
         ui_panel.fill((0, 0, 0, 180))
-        self.screen.blit(ui_panel, (5, SCREEN_HEIGHT - 205))
+        self.screen.blit(ui_panel, (SCREEN_WIDTH - 200, SCREEN_HEIGHT - 205))
         
         # Informazioni trasformazione attiva
         if self.player.transformation != TransformationType.NONE:
@@ -1030,7 +1040,7 @@ un’unità centrale che gestisce il flusso del programma.
             "WASD/Frecce: Muovi",
             "1: Camuffamento",
             "2: Teletrasporto",
-            "3: Passi Fantasma",
+            "3: NOP Raygun",
             "4: Combo",
             "R: Reset Livello"
         ]
@@ -1038,9 +1048,33 @@ un’unità centrale che gestisce il flusso del programma.
         y = SCREEN_HEIGHT - 180
         for instruction in instructions:
             text = self.small_font.render(instruction, True, WHITE)
-            self.screen.blit(text, (10, y))
+            self.screen.blit(text, (SCREEN_WIDTH - 200, y))
             y += 30
         
+        # draw live scoreboard
+        scoreboard_text = "CLASSIFICA TOP 10"
+        top_10_string = []
+        with open("classifica.txt", "r") as f:
+            lines = f.readlines()
+            # sort lines by level reached (assuming format "name: level")
+            lines = sorted(lines, key=lambda x: int(x.split(':')[-1].strip()), reverse=True)
+            for i, line in enumerate(lines[:10]):
+                stringa_utile = ""
+                linea = line.split('-')
+                stringa_utile = linea[0].strip() + " - " + linea[1].split(':')[-1].strip()
+                top_10_string.append(f"{i+1}. {stringa_utile}")
+            
+        scoreboard = self.small_font.render(scoreboard_text, True, WHITE)
+        self.screen.blit(scoreboard, (SCREEN_WIDTH - 200, SCREEN_HEIGHT - 600))
+        base_y = SCREEN_HEIGHT - 570
+        for i in top_10_string:
+            text = self.small_font.render(i.strip(), True, WHITE)
+            self.screen.blit(text, (SCREEN_WIDTH - 200, base_y))
+            base_y += 20
+
+
+
+
         # Livello e stato
         level_text = self.font.render(f"Livello: {self.level}", True, WHITE)
         self.screen.blit(level_text, (10, 10))
@@ -1053,7 +1087,7 @@ un’unità centrale che gestisce il flusso del programma.
         self.screen.blit(rem_transformations, (10, SCREEN_HEIGHT - 30))
         if self.player.detected:
             warning = self.font.render("RILEVATO!", True, RED)
-            x = SCREEN_WIDTH//2 - warning.get_width()//2
+            x = GAME_WIDTH//2 - warning.get_width()//2
             pygame.draw.rect(self.screen, BLACK, (x-10, 45, warning.get_width()+20, 40))
             self.screen.blit(warning, (x, 50))
             # togli una vita
@@ -1063,7 +1097,7 @@ un’unità centrale che gestisce il flusso del programma.
             self.player.y = 30
             if self.player.lives <= 0:
                 game_over = self.font.render("GAME OVER! Premi R per riprovare o chiudi per uscire.", True, RED)
-                x = SCREEN_WIDTH//2 - game_over.get_width()//2
+                x = GAME_WIDTH//2 - game_over.get_width()//2
                 pygame.draw.rect(self.screen, BLACK, (x-10, SCREEN_HEIGHT//2 - 30, game_over.get_width()+20, 40))
                 self.screen.blit(game_over, (x, SCREEN_HEIGHT//2 - 20))
 
@@ -1093,13 +1127,13 @@ un’unità centrale che gestisce il flusso del programma.
 
         #disegna le vite in alto a destra
         lives_text = self.font.render(f"Vite: {self.player.lives}", True, WHITE)
-        self.screen.blit(lives_text, (SCREEN_WIDTH - lives_text.get_width() - 10, 10))
+        self.screen.blit(lives_text, (GAME_WIDTH - lives_text.get_width() - 10, 10))
         
         # Disegna muri con tile sprite
         for wall in self.walls:
             for x in range(wall.x, wall.x + wall.width, TILE_SIZE):
                 for y in range(wall.y, wall.y + wall.height, TILE_SIZE):
-                    if x < SCREEN_WIDTH and y < SCREEN_HEIGHT:
+                    if x < GAME_WIDTH and y < GAME_HEIGHT:
                         self.screen.blit(self.sprite_manager.sprites['wall'], (x, y))
         
         # Disegna elementi di gioco
@@ -1181,7 +1215,7 @@ def load_custom_sprites(sprite_manager):
                 if sprite_name == 'goal':
                     img = pygame.transform.scale(img, (TILE_SIZE * 2, TILE_SIZE * 2))
                 elif sprite_name == 'background':
-                    img = pygame.transform.scale(img, (SCREEN_WIDTH, SCREEN_HEIGHT))
+                    img = pygame.transform.scale(img, (GAME_WIDTH, GAME_HEIGHT))
                 elif sprite_name != 'background':
                     img = pygame.transform.scale(img, (TILE_SIZE, TILE_SIZE))
                 
