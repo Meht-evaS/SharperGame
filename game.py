@@ -8,7 +8,7 @@ from enum import Enum
 pygame.init()
 
 # Costanti
-SCREEN_WIDTH = 1024
+SCREEN_WIDTH = 1156
 SCREEN_HEIGHT = 768
 TILE_SIZE = 32
 FPS = 60
@@ -26,7 +26,7 @@ DARK_GRAY = (64, 64, 64)
 
 
 MAX_EQ_TRANSFORMATIONS = 2
-MAX_NOP_TRANSFORMATIONS = 3
+MAX_NOP_TRANSFORMATIONS = 5
 MAX_COMBO_TRANSFORMATIONS = 1
 MAX_IBP_TRANSFORMATIONS = 2
 
@@ -37,6 +37,7 @@ class TransformationType(Enum):
     PERMUTATION = 2   # Teletrasporto
     NOP_INSERTION = 3 # Passi fantasma
     COMBO = 4         # Combinazione
+    POSITION_INDEPENDENT = 5
 
 class SpriteManager:
     """Gestisce il caricamento e la creazione degli sprite"""
@@ -379,10 +380,6 @@ class Player:
             self.rem_nop_transformations -= 1
             return None
             # Spara NOP che allontanano le guardie
-
-
-
-            self.rem_nop_transformations -= 1
         elif trans_type == TransformationType.COMBO:
             # Applica combo di effetti
             if self.rem_combo_transformations <= 0:
@@ -390,7 +387,15 @@ class Player:
             self.color = random.choice(colors)
             self.ghost_steps = []
             self.rem_combo_transformations -= 1
-        return None
+            return None
+        elif trans_type == TransformationType.POSITION_INDEPENDENT:
+            if self.rem_ibp_transformations <= 0:
+                return None
+            self.teleport_random()
+            self.color = random.choice(colors)
+            self.ghost_steps = []
+            self.rem_ibp_transformations -= 1
+            return ParticleEffect(self.x, self.y, 'teleport')
     
     def teleport_random(self):
         # Teletrasporto in una posizione casuale sicura, no guardie vicine e no muri
@@ -616,25 +621,36 @@ class Game:
     def menu(self):
         waiting = True
         while waiting:
-            self.screen.fill(BLACK)
+            # put a background image
+            bg_img = pygame.image.load("assets/CyberGarflieldpng.png")
+            # lower the contrast of the image
+            bg_img = pygame.transform.scale(bg_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
+            bg_img.set_alpha(100)
+
+            self.screen.blit(bg_img, (0, 0))
+
+            
+
             title = self.font.render("Metamorphic Maze - Sharper Night", True, WHITE)
-            instruction = self.small_font.render("Premi SPAZIO per iniziare", True, WHITE)
-            regolamento = self.small_font.render("Premi O per le istruzioni", True, WHITE)
-            background_scientifico = self.small_font.render("Premi B per leggere il signficiato scientifico di questo gioco", True, WHITE)
-            classifica = self.small_font.render("Premi C per la classifica", True, WHITE)
+            instruction = self.small_font.render("- Premi SPAZIO per iniziare", True, WHITE)
+            regolamento = self.small_font.render("- Premi O per le istruzioni", True, WHITE)
+            background_scientifico = self.small_font.render("- Premi B per leggere il signficiato scientifico di questo gioco", True, WHITE)
+            classifica = self.small_font.render("- Premi C per la classifica", True, WHITE)
 
             small_description1 = self.small_font.render("Sei Garfield, un virus informatico che deve infiltrarsi in un sistema sorvegliato da antivirus.", True, WHITE)
             small_description2 = self.small_font.render("Usa le trasformazioni metamorfiche per evitare di essere rilevato e raggiungere il server.", True, WHITE)
+            
+            
 
-
-            self.screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, SCREEN_HEIGHT//2 - 50))
-            self.screen.blit(instruction, (SCREEN_WIDTH//2 - instruction.get_width()//2, SCREEN_HEIGHT//2 + 10))
-            self.screen.blit(regolamento, (SCREEN_WIDTH//2 - regolamento.get_width()//2, SCREEN_HEIGHT//2 + 40))
-            self.screen.blit(background_scientifico, (SCREEN_WIDTH//2 - background_scientifico.get_width()//2, SCREEN_HEIGHT//2 + 70))
-            self.screen.blit(classifica, (SCREEN_WIDTH//2 - classifica.get_width()//2, SCREEN_HEIGHT//2 + 100))
+            self.screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, SCREEN_HEIGHT//2 - 150))
+            self.screen.blit(instruction, (80, SCREEN_HEIGHT//2 + 10))
+            self.screen.blit(regolamento, (80, SCREEN_HEIGHT//2 + 40))
+            self.screen.blit(background_scientifico, (80, SCREEN_HEIGHT//2 + 70))
+            self.screen.blit(classifica, (80, SCREEN_HEIGHT//2 + 100))
             # vai a capo
-            self.screen.blit(small_description1, (SCREEN_WIDTH//2 - small_description1.get_width()//2, SCREEN_HEIGHT//2 + 120))
-            self.screen.blit(small_description2, (SCREEN_WIDTH//2 - small_description2.get_width()//2, SCREEN_HEIGHT//2 + 150))
+            self.screen.blit(small_description1, (SCREEN_WIDTH//2 - small_description1.get_width()//2, SCREEN_HEIGHT//2 - 70))
+            self.screen.blit(small_description2, (SCREEN_WIDTH//2 - small_description2.get_width()//2, SCREEN_HEIGHT//2 - 50))
+
             pygame.display.flip()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -649,6 +665,7 @@ class Game:
                         asking_name = True
                         while asking_name:
                             self.screen.fill(BLACK)
+                            self.screen.blit(bg_img, (0, 0))
                             prompt = self.small_font.render("Inserisci il tuo nome (max 15 caratteri): " + self.player_name, True, WHITE)
                             self.screen.blit(prompt, (SCREEN_WIDTH//2 - prompt.get_width()//2, SCREEN_HEIGHT//2))
                             pygame.display.flip()
@@ -709,6 +726,8 @@ un’unità centrale che gestisce il flusso del programma.
                         offset = 0
                         while waiting_scientifico:
                             self.screen.fill(BLACK)
+                            # bg_img = pygame.image.load("assets/CyberGarflieldpng.png")
+                            self.screen.blit(bg_img, (0, 0))
                             y = SCREEN_HEIGHT//2 - len(lines)*10 + offset
                             for line in lines:
                                 text = self.small_font.render(line, True, WHITE)
@@ -746,6 +765,8 @@ un’unità centrale che gestisce il flusso del programma.
                             lines = f.readlines()
                         while waiting_classifica:
                             self.screen.fill(BLACK)
+                            # bg_img = pygame.image.load("assets/CyberGarflieldpng.png")
+                            self.screen.blit(bg_img, (0, 0))
                             title = self.font.render("Classifica", True, WHITE)
                             self.screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 50))
                             y = 100
@@ -778,6 +799,8 @@ un’unità centrale che gestisce il flusso del programma.
                         waiting_instr = True
                         while waiting_instr:
                             self.screen.fill(BLACK)
+                            # bg_img = pygame.image.load("assets/CyberGarflieldpng.png")
+                            self.screen.blit(bg_img, (0, 0))
                             lines = [
                                 "Istruzioni:",
                                 "WASD/Frecce: Muovi",
@@ -844,6 +867,12 @@ un’unità centrale che gestisce il flusso del programma.
         self.walls.append(pygame.Rect(600, 500, 150, 20))
 
 
+        self.walls.append(pygame.Rect(800, 300, 20, 200))
+        self.walls.append(pygame.Rect(700, 150, 150, 20))
+        self.walls.append(pygame.Rect(900, 100, 20, 300))
+        self.walls.append(pygame.Rect(850, 400, 150, 20))
+
+
         # Aggiungi guardie basate sul livello
  
             # Livelli successivi
@@ -881,6 +910,10 @@ un’unità centrale che gestisce il flusso del programma.
                         self.particle_effects.append(effect)
                 elif event.key == pygame.K_4:
                     effect = self.player.apply_transformation(TransformationType.COMBO)
+                    if effect:
+                        self.particle_effects.append(effect)
+                elif event.key == pygame.K_5:
+                    effect = self.player.apply_transformation(TransformationType.POSITION_INDEPENDENT)
                     if effect:
                         self.particle_effects.append(effect)
                 elif event.key == pygame.K_r:
@@ -1029,7 +1062,7 @@ un’unità centrale che gestisce il flusso del programma.
             self.player.x = 30
             self.player.y = 30
             if self.player.lives <= 0:
-                game_over = self.font.render("GAME OVER! Premi R per riprovare. o Chiudi per uscire.", True, RED)
+                game_over = self.font.render("GAME OVER! Premi R per riprovare o chiudi per uscire.", True, RED)
                 x = SCREEN_WIDTH//2 - game_over.get_width()//2
                 pygame.draw.rect(self.screen, BLACK, (x-10, SCREEN_HEIGHT//2 - 30, game_over.get_width()+20, 40))
                 self.screen.blit(game_over, (x, SCREEN_HEIGHT//2 - 20))
