@@ -30,6 +30,7 @@ YELLOW = (255, 255, 0)
 PURPLE = (128, 0, 128)
 GRAY = (128, 128, 128)
 DARK_GRAY = (64, 64, 64)
+ORANGE = (255, 140, 0)
 
 
 MAX_EQ_TRANSFORMATIONS = 2
@@ -633,37 +634,95 @@ class Game:
             # lower the contrast of the image
             bg_img = pygame.transform.scale(bg_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
             bg_img.set_alpha(100)
-
             self.screen.blit(bg_img, (0, 0))
 
-            
-
-            title = self.font.render("Metamorphic Maze - Sharper Night", True, WHITE)
-            instruction = self.small_font.render("- Premi SPAZIO per iniziare", True, WHITE)
-            regolamento = self.small_font.render("- Premi O per le istruzioni", True, WHITE)
-            background_scientifico = self.small_font.render("- Premi B per leggere il signficiato scientifico di questo gioco", True, WHITE)
-            classifica = self.small_font.render("- Premi C per la classifica", True, WHITE)
-
+            # --- TESTI INTRODUZIONE ---
+            title = self.font.render("Metamorphic Maze - Sharper Night", True, ORANGE)
             small_description1 = self.small_font.render("Sei Garfield, un virus informatico che deve infiltrarsi in un sistema sorvegliato da antivirus.", True, WHITE)
             small_description2 = self.small_font.render("Usa le trasformazioni metamorfiche per evitare di essere rilevato e raggiungere il server.", True, WHITE)
-            
-            
 
-            self.screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, SCREEN_HEIGHT//2 - 150))
-            self.screen.blit(instruction, (80, SCREEN_HEIGHT//2 + 10))
-            self.screen.blit(regolamento, (80, SCREEN_HEIGHT//2 + 40))
-            self.screen.blit(background_scientifico, (80, SCREEN_HEIGHT//2 + 70))
-            self.screen.blit(classifica, (80, SCREEN_HEIGHT//2 + 100))
-            # vai a capo
-            self.screen.blit(small_description1, (SCREEN_WIDTH//2 - small_description1.get_width()//2, SCREEN_HEIGHT//2 - 70))
-            self.screen.blit(small_description2, (SCREEN_WIDTH//2 - small_description2.get_width()//2, SCREEN_HEIGHT//2 - 50))
+            top_margin = 30
+
+            sd1_x = 50
+            sd1_y = top_margin + title.get_height() + 8
+
+            # Centra title e sd2 rispetto a small_description1
+            title_x = sd1_x + (small_description1.get_width() // 2) - (title.get_width() // 2)
+            title_y = top_margin
+
+            sd2_x = sd1_x + (small_description1.get_width() // 2) - (small_description2.get_width() // 2)
+            sd2_y = sd1_y + small_description1.get_height() + 4
+
+            # --- BOX NERO TRASPARENTE per contenere il testo e creare contrasto ---
+            # Calcolo della posizione e dimensione della box
+            min_x = min(title_x, sd1_x, sd2_x)
+            max_x = max(title_x + title.get_width(),
+                        sd1_x + small_description1.get_width(),
+                        sd2_x + small_description2.get_width())
+            box_width = max_x - min_x + 28 + 5  # 14px padding per lato + 5px extra
+            box_left = min_x - 14 - 2  # 2px extra per centrare l'ingrandimento
+
+            # Y min/max per i testi
+            min_y = min(title_y, sd1_y, sd2_y)
+            max_y = max(title_y + title.get_height(),
+                        sd1_y + small_description1.get_height(),
+                        sd2_y + small_description2.get_height())
+            box_height = max_y - min_y + 28 + 5  # 14px padding sopra/sotto + 5px extra
+            
+            # Centratura della box verticalmente rispetto ai testi
+            # Cerchiamo il centro dei testi
+            texts_center_y = (min_y + max_y) // 2
+            box_top = texts_center_y - (box_height // 2)
+
+            # Box con superficie trasparente al 40% -> alpha 102 su 255
+            box_surface = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+            box_surface.fill((0, 0, 0, 102))
+            self.screen.blit(box_surface, (box_left, box_top))
+
+            # Blit dei testi dentro la box
+            self.screen.blit(title, (title_x, title_y))
+            self.screen.blit(small_description1, (sd1_x, sd1_y))
+            self.screen.blit(small_description2, (sd2_x, sd2_y))
+
+            # --- BOX NERO TRASPARENTE PER VOCI MENU' IN BASSO A DESTRA ---
+            menu_texts = [
+                self.small_font.render("- Premi SPAZIO per iniziare", True, WHITE),
+                self.small_font.render("- Premi O per le istruzioni", True, WHITE),
+                self.small_font.render("- Premi B per leggere il signficiato scientifico di questo gioco", True, WHITE),
+                self.small_font.render("- Premi C per la classifica", True, WHITE)
+            ]
+
+            # Calcolo larghezza/altezza massima delle voci
+            menu_width = max(text.get_width() for text in menu_texts)
+            menu_height = sum(text.get_height() for text in menu_texts)
+            padding_x = 20
+            padding_y = 12
+            spacing = 8  # spazio tra le voci
+
+            box_width = menu_width + 2 * padding_x
+            box_height = menu_height + (len(menu_texts)-1)*spacing + 2 * padding_y
+
+            # Posizione della box in basso a destra
+            box_x = SCREEN_WIDTH - box_width - 30
+            box_y = SCREEN_HEIGHT - box_height - 30
+
+            # Box con superficie trasparente al 40% -> alpha 102 su 255
+            menu_box = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+            menu_box.fill((0, 0, 0, 102))
+
+            self.screen.blit(menu_box, (box_x, box_y))
+
+            # Blit dei testi all'interno della box (padding interno)
+            current_y = box_y + padding_y
+            for text in menu_texts:
+                self.screen.blit(text, (box_x + padding_x, current_y))
+                current_y += text.get_height() + spacing
 
             pygame.display.flip()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     waiting = False
                     self.running = False
-                    
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_SPACE:
                         waiting = False
