@@ -30,6 +30,7 @@ YELLOW = (255, 255, 0)
 PURPLE = (128, 0, 128)
 GRAY = (128, 128, 128)
 DARK_GRAY = (64, 64, 64)
+ORANGE = (255, 140, 0)
 
 
 MAX_EQ_TRANSFORMATIONS = 2
@@ -627,73 +628,143 @@ class Game:
     
     def menu(self):
         waiting = True
+        # Opzioni di menù, con testo e azione associata
+        menu_options = [
+            {"text": "- Inizia partita", "action": "start_game"},
+            {"text": "- Istruzioni", "action": "instructions"},
+            {"text": "- Significato scientifico", "action": "scientifico"},
+            {"text": "- Classifica", "action": "classifica"},
+        ]
+        selected = 0
+
         while waiting:
             # put a background image
             bg_img = pygame.image.load("assets/CyberGarflieldpng.png")
             # lower the contrast of the image
             bg_img = pygame.transform.scale(bg_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
             bg_img.set_alpha(100)
-
             self.screen.blit(bg_img, (0, 0))
 
-            
-
-            title = self.font.render("Metamorphic Maze - Sharper Night", True, WHITE)
-            instruction = self.small_font.render("- Premi SPAZIO per iniziare", True, WHITE)
-            regolamento = self.small_font.render("- Premi O per le istruzioni", True, WHITE)
-            background_scientifico = self.small_font.render("- Premi B per leggere il signficiato scientifico di questo gioco", True, WHITE)
-            classifica = self.small_font.render("- Premi C per la classifica", True, WHITE)
-
+            # --- TESTI INTRODUZIONE ---
+            title = self.font.render("Metamorphic Maze - Sharper Night", True, ORANGE)
             small_description1 = self.small_font.render("Sei Garfield, un virus informatico che deve infiltrarsi in un sistema sorvegliato da antivirus.", True, WHITE)
             small_description2 = self.small_font.render("Usa le trasformazioni metamorfiche per evitare di essere rilevato e raggiungere il server.", True, WHITE)
-            
-            
 
-            self.screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, SCREEN_HEIGHT//2 - 150))
-            self.screen.blit(instruction, (80, SCREEN_HEIGHT//2 + 10))
-            self.screen.blit(regolamento, (80, SCREEN_HEIGHT//2 + 40))
-            self.screen.blit(background_scientifico, (80, SCREEN_HEIGHT//2 + 70))
-            self.screen.blit(classifica, (80, SCREEN_HEIGHT//2 + 100))
-            # vai a capo
-            self.screen.blit(small_description1, (SCREEN_WIDTH//2 - small_description1.get_width()//2, SCREEN_HEIGHT//2 - 70))
-            self.screen.blit(small_description2, (SCREEN_WIDTH//2 - small_description2.get_width()//2, SCREEN_HEIGHT//2 - 50))
+            top_margin = 30
+
+            sd1_x = 50
+            sd1_y = top_margin + title.get_height() + 8
+
+            # Centra title e sd2 rispetto a small_description1
+            title_x = sd1_x + (small_description1.get_width() // 2) - (title.get_width() // 2)
+            title_y = top_margin
+
+            sd2_x = sd1_x + (small_description1.get_width() // 2) - (small_description2.get_width() // 2)
+            sd2_y = sd1_y + small_description1.get_height() + 4
+
+            # --- BOX NERO TRASPARENTE per contenere il testo e creare contrasto ---
+            # Calcolo della posizione e dimensione della box
+            min_x = min(title_x, sd1_x, sd2_x)
+            max_x = max(title_x + title.get_width(),
+                        sd1_x + small_description1.get_width(),
+                        sd2_x + small_description2.get_width())
+            box_width = max_x - min_x + 28 + 5  # 14px padding per lato + 5px extra
+            box_left = min_x - 14 - 2  # 2px extra per centrare l'ingrandimento
+
+            # Y min/max per i testi
+            min_y = min(title_y, sd1_y, sd2_y)
+            max_y = max(title_y + title.get_height(),
+                        sd1_y + small_description1.get_height(),
+                        sd2_y + small_description2.get_height())
+            box_height = max_y - min_y + 28 + 5  # 14px padding sopra/sotto + 5px extra
+            
+            # Centratura della box verticalmente rispetto ai testi
+            # Cerchiamo il centro dei testi
+            texts_center_y = (min_y + max_y) // 2
+            box_top = texts_center_y - (box_height // 2)
+
+            # Box con superficie trasparente al 40% -> alpha 102 su 255
+            box_surface = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+            box_surface.fill((0, 0, 0, 102))
+            self.screen.blit(box_surface, (box_left, box_top))
+
+            # Blit dei testi dentro la box
+            self.screen.blit(title, (title_x, title_y))
+            self.screen.blit(small_description1, (sd1_x, sd1_y))
+            self.screen.blit(small_description2, (sd2_x, sd2_y))
+
+            # --- BOX NERO TRASPARENTE PER VOCI MENU' IN BASSO A DESTRA ---
+            # Calcolo larghezza/altezza massima delle voci
+            menu_width = max(self.small_font.size(opt["text"])[0] for opt in menu_options)
+            menu_height = sum(self.small_font.size(opt["text"])[1] for opt in menu_options)
+            padding_x = 20
+            padding_y = 12
+            spacing = 8  # spazio tra le voci
+
+            box_width = menu_width + 2 * padding_x
+            box_height = menu_height + (len(menu_options)-1)*spacing + 2 * padding_y
+
+            # Posizione della box in basso a destra
+            box_x = SCREEN_WIDTH - box_width - 30
+            box_y = SCREEN_HEIGHT - box_height - 30
+
+            # Box con superficie trasparente al 40% -> alpha 102 su 255
+            menu_box = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+            menu_box.fill((0, 0, 0, 102))
+
+            self.screen.blit(menu_box, (box_x, box_y))
+
+            # Blit delle voci all'interno della box (padding interno) e selezione arancione
+            current_y = box_y + padding_y
+            for idx, option in enumerate(menu_options):
+                color = ORANGE if idx == selected else WHITE
+                text = self.small_font.render(option["text"], True, color)
+                self.screen.blit(text, (box_x + padding_x, current_y))
+                current_y += text.get_height() + spacing
 
             pygame.display.flip()
+
+            # --- Eventi ---
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     waiting = False
                     self.running = False
-                    
                 elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_SPACE:
-                        waiting = False
-                        # first ask for player name
-                        self.player_name = ""
-                        asking_name = True
-                        while asking_name:
-                            self.screen.fill(BLACK)
-                            self.screen.blit(bg_img, (0, 0))
-                            prompt = self.small_font.render("Inserisci il tuo nome (max 15 caratteri): " + self.player_name, True, WHITE)
-                            self.screen.blit(prompt, (SCREEN_WIDTH//2 - prompt.get_width()//2, SCREEN_HEIGHT//2))
-                            pygame.display.flip()
-                            for event in pygame.event.get():
-                                if event.type == pygame.QUIT:
-                                    asking_name = False
-                                    waiting = False
-                                    self.running = False
-                                elif event.type == pygame.KEYDOWN:
-                                    if event.key == pygame.K_RETURN:
-                                        if len(self.player_name) > 0:
-                                            asking_name = False
-                                    elif event.key == pygame.K_BACKSPACE:
-                                        self.player_name = self.player_name[:-1]
-                                    else:
-                                        if len(self.player_name) < 15 and event.unicode.isprintable():
-                                            self.player_name += event.unicode
-
-                        self.init_level()
-                    if event.key == pygame.K_b or event.key == pygame.KSCAN_B:
-                        string = '''
+                    if event.key == pygame.K_UP:
+                        selected = (selected - 1) % len(menu_options)
+                    elif event.key == pygame.K_DOWN:
+                        selected = (selected + 1) % len(menu_options)
+                    elif event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
+                        action = menu_options[selected]["action"]
+                        if action == "start_game":
+                            # first ask for player name
+                            self.player_name = ""
+                            asking_name = True
+                            while asking_name:
+                                self.screen.fill(BLACK)
+                                self.screen.blit(bg_img, (0, 0))
+                                prompt = self.small_font.render("Inserisci il tuo nome (max 15 caratteri): " + self.player_name, True, WHITE)
+                                self.screen.blit(prompt, (SCREEN_WIDTH//2 - prompt.get_width()//2, SCREEN_HEIGHT//2))
+                                pygame.display.flip()
+                                for event in pygame.event.get():
+                                    if event.type == pygame.QUIT:
+                                        asking_name = False
+                                        waiting = False
+                                        self.running = False
+                                    elif event.type == pygame.KEYDOWN:
+                                        if event.key == pygame.K_RETURN:
+                                            if len(self.player_name) > 0:
+                                                asking_name = False
+                                        elif event.key == pygame.K_BACKSPACE:
+                                            self.player_name = self.player_name[:-1]
+                                        else:
+                                            if len(self.player_name) < 15 and event.unicode.isprintable():
+                                                self.player_name += event.unicode
+                            waiting = False
+                            self.init_level()
+                            return
+                        elif action == "scientifico":
+                            string = '''
 Il metamorfismo è una tecnica utilizzata dagli autori di malware (software malevolo, comunemente detti virus informatici) per 
 aggirare gli strumenti di sicurezza come antivirus o EDR.
 
@@ -703,141 +774,193 @@ Se questi tratti distintivi vengono modificati senza alterare il funzionamento o
 si ottiene un malware che compie le stesse azioni, ma in modo diverso, e che quindi può eludere la rilevazione.
 
 Per raggiungere questo obiettivo esistono diverse tecniche. 
-Noi abbiamo realizzato un software che ne implementa 4 già conosciute e 1 da noi inventata.E' anche possibile combinarle.
+Noi abbiamo realizzato un software che ne implementa 4 già conosciute e 1 da noi inventata. È anche possibile combinarle.
 
 Ecco quali sono e cosa fanno, in breve:
 
-1)Equal Instruction Substitution
-Sostituisce alcune istruzioni con altre che hanno lo stesso identico effetto.
+1) Equal Instruction Substitution
+   Sostituisce alcune istruzioni con altre che hanno lo stesso identico effetto.
 
-2)NOP Insertion
-Inserisce istruzioni che non alterano in alcun modo il comportamento del programma.
+2) NOP Insertion
+   Inserisce istruzioni che non alterano in alcun modo il comportamento del programma.
 
-3)Instruction Block Permutation
-Divide il programma in blocchi di istruzioni e ne cambia l’ordine. Per mantenere il corretto flusso di esecuzione, 
-vengono inseriti salti (JMP) alla fine dei blocchi, così che il programma funzioni come prima, ma con una struttura diversa.
+3) Instruction Block Permutation
+   Divide il programma in blocchi di istruzioni e ne cambia l’ordine. 
+   Per mantenere il corretto flusso di esecuzione, vengono inseriti salti (JMP) alla fine dei blocchi,
+   così che il programma funzioni come prima, ma con una struttura diversa.
 
-4)Bogus Control Flow
-Aggiunge interi blocchi di codice inutili che non verranno mai eseguiti. 
-Ogni blocco è preceduto da una condizione che forziamo sempre a vera o falsa, in modo da impedirne l’esecuzione.
- Questo complica anche l’analisi statica del codice.
+4) Bogus Control Flow
+   Aggiunge interi blocchi di codice inutili che non verranno mai eseguiti. 
+   Ogni blocco è preceduto da una condizione che forziamo sempre a vera o falsa, in modo da impedirne l’esecuzione.
+   Questo complica anche l’analisi statica del codice.
 
-5)Position Independent Instruction (tecnica originale)
-Permette di rimescolare non solo i blocchi, ma ogni singola istruzione. 
-È una tecnica molto potente ma anche estremamente invasiva, perché richiede che ogni istruzione restituisca il controllo a
-un’unità centrale che gestisce il flusso del programma.
+5) Position Independent Instruction (tecnica originale)
+   Permette di rimescolare non solo i blocchi, ma ogni singola istruzione. 
+   È una tecnica molto potente ma anche estremamente invasiva, perché richiede che ogni istruzione restituisca il controllo a
+   un’unità centrale che gestisce il flusso del programma.
 '''
-                    # make it scrollable
-                        waiting_scientifico = True
-                        lines = string.split('\n')
-                        offset = 0
-                        while waiting_scientifico:
-                            self.screen.fill(BLACK)
-                            # bg_img = pygame.image.load("assets/CyberGarflieldpng.png")
-                            self.screen.blit(bg_img, (0, 0))
-                            y = SCREEN_HEIGHT//2 - len(lines)*10 + offset
-                            for line in lines:
-                                text = self.small_font.render(line, True, WHITE)
-                                self.screen.blit(text, (50, y))
-                                y += 20
-                            pygame.display.flip()
-                            for event in pygame.event.get():
-                                if event.type == pygame.QUIT:
-                                    waiting_scientifico = False
-                                    waiting = False
-                                    self.running = False
-                                elif event.type == pygame.KEYDOWN:
-                                    if event.key == pygame.K_r:
-                                        waiting_scientifico = False
-                                    if event.key == pygame.K_ESCAPE:
+                            # make it scrollable
+                            waiting_scientifico = True
+                            # Analisi delle righe per indentazione dopo x)
+                            lines_raw = string.split('\n')
+                            lines = []
+                            indent = 0
+                            for line in lines_raw:
+                                if line.strip().startswith(('1)', '2)', '3)', '4)', '5)')):
+                                    indent = 0
+                                    lines.append((line.strip(), indent))
+                                    indent = 18.5  # indent per le righe successive
+                                elif line.strip() == '':
+                                    indent = 0
+                                    lines.append(('', 0))
+                                else:
+                                    lines.append((line.strip(), indent))
+                            offset = 0
+                            while waiting_scientifico:
+                                self.screen.fill(BLACK)
+                                self.screen.blit(bg_img, (0, 0))
+                                y = SCREEN_HEIGHT//2 - len(lines)*10 + offset
+                                for line, indent in lines:
+                                    text = self.small_font.render(line, True, WHITE)
+                                    self.screen.blit(text, (50 + indent, y))
+                                    y += 20
+                                # Testo arancione centrato in fondo con BOX NERO TRASPARENTE (alpha 179 = 70%)
+                                info = "Premi R, ESC o INVIO per tornare al menu"
+                                text_info = self.small_font.render(info, True, ORANGE)
+                                padding_x = 28
+                                padding_y = 10
+                                box_width = text_info.get_width() + 2 * padding_x
+                                box_height = text_info.get_height() + 2 * padding_y
+                                box_x = SCREEN_WIDTH//2 - box_width//2
+                                box_y = SCREEN_HEIGHT - 60 - padding_y
+                                menu_box = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+                                menu_box.fill((0, 0, 0, 179))  # alpha 179 = 70% trasparenza
+                                self.screen.blit(menu_box, (box_x, box_y))
+                                self.screen.blit(
+                                    text_info,
+                                    (SCREEN_WIDTH//2 - text_info.get_width()//2, box_y + padding_y)
+                                )
+                                pygame.display.flip()
+                                for event in pygame.event.get():
+                                    if event.type == pygame.QUIT:
                                         waiting_scientifico = False
                                         waiting = False
                                         self.running = False
-                                    if event.key == pygame.K_UP:
-                                        offset += 20
-                                    if event.key == pygame.K_DOWN:
-                                        offset -= 20
-                                    if event.key == pygame.K_b or event.key == pygame.KSCAN_B:
-                                        offset = 0
-                                        waiting_scientifico = False
-                        continue
-                    if event.key == pygame.K_c or event.key == pygame.KSCAN_C:
-                        show_first_n = 10
-                        #  leggi classifica da file classifica.txt
-                        waiting_classifica = True
-                        if not os.path.exists("classifica.txt"):
-                            with open("classifica.txt", "w") as f:
-                                f.write("Nessun punteggio ancora.\n")
-                        with open("classifica.txt", "r") as f:
-                            lines = f.readlines()
-                        while waiting_classifica:
-                            self.screen.fill(BLACK)
-                            # bg_img = pygame.image.load("assets/CyberGarflieldpng.png")
-                            self.screen.blit(bg_img, (0, 0))
-                            title = self.font.render("Classifica TOP 10", True, WHITE)
-                            self.screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 50))
-                            y = 100
-                            # sort lines by level reached (assuming format "name: level")
-                            lines = sorted(lines, key=lambda x: int(x.split(':')[-1].strip()), reverse=True)
-                            for x,line in enumerate(lines):
-                                if x >= show_first_n:
-                                    break
-                                text = self.small_font.render(line.strip(), True, WHITE)
-                                self.screen.blit(text, (SCREEN_WIDTH//2 - text.get_width()//2, y))
-                                y += 30
-                            instruction = self.small_font.render("Premi R per tornare al menu", True, WHITE)
-                            self.screen.blit(instruction, (SCREEN_WIDTH//2 - instruction.get_width()//2, SCREEN_HEIGHT - 50))
-                            pygame.display.flip()
-                            for event in pygame.event.get():
-                                if event.type == pygame.QUIT:
-                                    waiting_classifica = False
-                                    waiting = False
-                                    self.running = False
-                                elif event.type == pygame.KEYDOWN:
-                                    if event.key == pygame.K_r:
-                                        waiting_classifica = False
-                                    if event.key == pygame.K_ESCAPE:
-                                        waiting_classifica = False
-                                        waiting = False
-                                        self.running = False
-                        continue
-                    if event.key == pygame.K_o or event.key == pygame.KSCAN_O:
-                    # mostra le istruzioni
-                        waiting_instr = True
-                        while waiting_instr:
-                            self.screen.fill(BLACK)
-                            # bg_img = pygame.image.load("assets/CyberGarflieldpng.png")
-                            self.screen.blit(bg_img, (0, 0))
-                            lines = [
-                                "Istruzioni:",
-                                "WASD/Frecce: Muovi",
-                                "1: Camuffamento (Substitution, camuffa il colore, attento pero', ogni guardia rileva un colore specifico)",
-                                "2: Teletrasporto (Permutation, teletrasporta in una zona casuale sicura)",
-                                "3: NOP Raygun (NOP Insertion, fa girare le guardie)",
-                                "4: Combo (Combo)",
-                                "R: Reset Livello",
-                                "Premi R per tornare al menu"
+                                    elif event.type == pygame.KEYDOWN:
+                                        if event.key == pygame.K_r or event.key == pygame.K_ESCAPE or event.key == pygame.K_RETURN:
+                                            waiting_scientifico = False
+                                        if event.key == pygame.K_UP:
+                                            offset += 20
+                                        if event.key == pygame.K_DOWN:
+                                            offset -= 20                                            
+                            continue
+                        elif action == "classifica":
+                            show_first_n = 10
+                            #  leggi classifica da file classifica.txt
+                            waiting_classifica = True
+                            if not os.path.exists("classifica.txt"):
+                                with open("classifica.txt", "w") as f:
+                                    f.write("Nessun punteggio ancora.\n")
+                            with open("classifica.txt", "r") as f:
+                                lines = f.readlines()
+                            while waiting_classifica:
+                                self.screen.fill(BLACK)
+                                self.screen.blit(bg_img, (0, 0))
+                                title = self.font.render("Classifica TOP 10", True, WHITE)
+                                self.screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 50))
+                                y = 100
+                                # sort lines by level reached (assuming format "name: level")
+                                lines = sorted(lines, key=lambda x: int(x.split(':')[-1].strip()) if ':' in x else 0, reverse=True)
+                                for x,line in enumerate(lines):
+                                    if x >= show_first_n:
+                                        break
+                                    text = self.small_font.render(line.strip(), True, WHITE)
+                                    self.screen.blit(text, (SCREEN_WIDTH//2 - text.get_width()//2, y))
+                                    y += 30
 
-                                "Premi ESC per Tornare al menu"
-                            ]
-                            y = SCREEN_HEIGHT//2 - len(lines)*20
-                            for line in lines:
-                                text = self.small_font.render(line, True, WHITE)
-                                self.screen.blit(text, (180, y))
-                                y += 30
-                            pygame.display.flip()
-                            for event in pygame.event.get():
-                                if event.type == pygame.QUIT:
-                                    waiting_instr = False
-                                    waiting = False
-                                    self.running = False
-                                elif event.type == pygame.KEYDOWN:
-                                    if event.key == pygame.K_r:
-                                        waiting_instr = False
-                                    if event.key == pygame.K_ESCAPE:
+                                # --- BOX NERO TRASPARENTE + testo arancione centrato in fondo ---
+                                info = "Premi R, ESC o INVIO per tornare al menu"
+                                text_info = self.small_font.render(info, True, ORANGE)
+                                padding_x = 28
+                                padding_y = 10
+                                box_width = text_info.get_width() + 2 * padding_x
+                                box_height = text_info.get_height() + 2 * padding_y
+                                box_x = SCREEN_WIDTH//2 - box_width//2
+                                box_y = SCREEN_HEIGHT - 60 - padding_y
+                                menu_box = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+                                menu_box.fill((0, 0, 0, 179))  # alpha 179 = 70% trasparenza
+                                self.screen.blit(menu_box, (box_x, box_y))
+                                self.screen.blit(
+                                    text_info,
+                                    (SCREEN_WIDTH//2 - text_info.get_width()//2, box_y + padding_y)
+                                )
+
+                                pygame.display.flip()
+                                for event in pygame.event.get():
+                                    if event.type == pygame.QUIT:
+                                        waiting_classifica = False
+                                        waiting = False
+                                        self.running = False
+                                    elif event.type == pygame.KEYDOWN:
+                                        if event.key == pygame.K_r or event.key == pygame.K_ESCAPE or event.key == pygame.K_RETURN:
+                                            waiting_classifica = False
+                            continue
+                        elif action == "instructions":
+                            # mostra le istruzioni
+                            waiting_instr = True
+                            while waiting_instr:
+                                self.screen.fill(BLACK)
+                                self.screen.blit(bg_img, (0, 0))
+                                lines = [
+                                    "ISTRUZIONI:",
+                                    "WASD/Frecce: Muovi il giocatore",
+                                    "1: Camuffamento (Substitution, camuffa il colore, attento però, ogni guardia rileva un colore specifico)",
+                                    "2: Teletrasporto (Permutation, teletrasporta in una zona casuale sicura)",
+                                    "3: NOP Raygun (NOP Insertion, fa girare le guardie)",
+                                    "4: Combo (Combo)",
+                                    "R: Reset Livello"
+                                ]
+                                # Font grande per il titolo
+                                big_font = pygame.font.Font(None, self.small_font.get_height() + 20)
+                                # Calcola posizione centrale per la prima riga
+                                text_title = big_font.render(lines[0], True, WHITE)
+                                title_x = SCREEN_WIDTH//2 - text_title.get_width()//2
+                                title_y = SCREEN_HEIGHT//2 - len(lines)*20
+                                self.screen.blit(text_title, (title_x, title_y))
+                                # Ora disegna tutte le altre righe 20px più in basso
+                                y = title_y + text_title.get_height() + 20
+                                for line in lines[1:]:
+                                    text = self.small_font.render(line, True, WHITE)
+                                    self.screen.blit(text, (180, y))
+                                    y += 30
+
+                                # --- BOX NERO TRASPARENTE + testo arancione centrato in fondo ---
+                                info = "Premi R, ESC o INVIO per tornare al menu"
+                                text_info = self.small_font.render(info, True, ORANGE)
+                                padding_x = 28
+                                padding_y = 10
+                                box_width = text_info.get_width() + 2 * padding_x
+                                box_height = text_info.get_height() + 2 * padding_y
+                                box_x = SCREEN_WIDTH//2 - box_width//2
+                                box_y = SCREEN_HEIGHT - 60 - padding_y
+                                menu_box = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+                                menu_box.fill((0, 0, 0, 179))  # alpha 179 = 70% trasparenza
+                                self.screen.blit(menu_box, (box_x, box_y))
+                                self.screen.blit(
+                                    text_info,
+                                    (SCREEN_WIDTH//2 - text_info.get_width()//2, box_y + padding_y)
+                                )
+
+                                pygame.display.flip()
+                                for event in pygame.event.get():
+                                    if event.type == pygame.QUIT:
                                         waiting_instr = False
                                         waiting = False
                                         self.running = False
+                                    elif event.type == pygame.KEYDOWN:
+                                        if event.key == pygame.K_r or event.key == pygame.K_ESCAPE or event.key == pygame.K_RETURN:
+                                            waiting_instr = False
+                            continue
 
     def init_level(self):
         # Inizializza livello
