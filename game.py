@@ -9,13 +9,13 @@ pygame.init()
 
 # Costanti
 SCREEN_WIDTH = 1280
-SCREEN_HEIGHT = 768
+SCREEN_HEIGHT = 808   # <--- aumenta di 40px per bottom sidebar
 
 # WINDOW_WIDTH = 1400        # larghezza totale della finestra (gioco + sidebar)
 # WINDOW_HEIGHT = 768
 SIDEBAR_WIDTH = 244
 GAME_WIDTH = SCREEN_WIDTH - SIDEBAR_WIDTH
-GAME_HEIGHT = SCREEN_HEIGHT
+GAME_HEIGHT = 768     # <--- SCREEN_HEIGHT - 40px di bottom sidebar
 
 TILE_SIZE = 40
 FPS = 60
@@ -1025,7 +1025,7 @@ un’unità centrale che gestisce il flusso del programma.
         sidebar_x = GAME_WIDTH
         sidebar_y = 0
         sidebar_width = SCREEN_WIDTH - GAME_WIDTH
-        sidebar_height = SCREEN_HEIGHT
+        sidebar_height = GAME_HEIGHT  # <-- solo altezza area di gioco, NON tutta la finestra!
         sidebar_panel = pygame.Surface((sidebar_width, sidebar_height))
         sidebar_panel.fill(BLACK)
         self.screen.blit(sidebar_panel, (sidebar_x, sidebar_y))
@@ -1058,7 +1058,7 @@ un’unità centrale che gestisce il flusso del programma.
                     top_10_string.append(f"{i+1}. {stringa_utile}")
 
         classifica_height = (len(top_10_string) * 20) + scoreboard.get_height() + 10
-        # Centro verticale della sidebar
+        # Centro verticale della sidebar SOLO nell'area di gioco
         sidebar_center_y = sidebar_y + sidebar_height // 2
         scoreboard_y = sidebar_center_y - (classifica_height // 2) - 20
         scoreboard_x = center_sidebar - scoreboard.get_width() // 2
@@ -1072,9 +1072,24 @@ un’unità centrale che gestisce il flusso del programma.
             self.screen.blit(text, (tx, base_y))
             base_y += 20
 
+        # --- BOTTOM SIDEBAR NERA (sotto l'area di gioco, NON in overlay) ---
+        bottom_sidebar_height = 40
+        bottom_sidebar_y = GAME_HEIGHT  # Subito dopo l'area di gioco
+        bottom_sidebar_panel = pygame.Surface((SCREEN_WIDTH, bottom_sidebar_height))
+        bottom_sidebar_panel.fill(BLACK)
+        self.screen.blit(bottom_sidebar_panel, (0, bottom_sidebar_y))
+
+        # Centrato SOLO rispetto all'area di gioco (non l'intera finestra)
+        rem_transformations = self.font.render(
+            f"Rimanenti - Camuffamenti: {self.player.rem_eq_transformations} | Teletrasporti: {self.player.rem_ibp_transformations} | NOP raygun: {self.player.rem_nop_transformations} | Combo: {self.player.rem_combo_transformations}",
+            True, WHITE)
+        rem_x = (GAME_WIDTH - rem_transformations.get_width()) // 2
+        rem_y = bottom_sidebar_y + (bottom_sidebar_height - rem_transformations.get_height()) // 2
+        self.screen.blit(rem_transformations, (rem_x, rem_y))
+
         ui_panel = pygame.Surface((250, 200), pygame.SRCALPHA)
         ui_panel.fill((0, 0, 0, 180))
-        self.screen.blit(ui_panel, (SCREEN_WIDTH - 200, SCREEN_HEIGHT - 205))
+        self.screen.blit(ui_panel, (SCREEN_WIDTH - 200, GAME_HEIGHT - 205))
 
         instructions = [
             "WASD/Frecce: Muovi",
@@ -1084,7 +1099,7 @@ un’unità centrale che gestisce il flusso del programma.
             "4: Combo",
             "R: Reset Livello"
         ]
-        y = SCREEN_HEIGHT - 180
+        y = GAME_HEIGHT - 180
         for instruction in instructions:
             text = self.small_font.render(instruction, True, WHITE)
             self.screen.blit(text, (SCREEN_WIDTH - 200, y))
@@ -1100,10 +1115,7 @@ un’unità centrale che gestisce il flusso del programma.
             self.screen.blit(text2, (10, 80))
 
         # --- Trasformazioni rimanenti in basso a sinistra ---
-        rem_transformations = self.font.render(
-            f"Rimanenti - Camuffamenti: {self.player.rem_eq_transformations} | Teletrasporti: {self.player.rem_ibp_transformations} | NOP raygun: {self.player.rem_nop_transformations} | Combo: {self.player.rem_combo_transformations}",
-            True, WHITE)
-        self.screen.blit(rem_transformations, (10, SCREEN_HEIGHT - 30))
+        # self.screen.blit(rem_transformations, (10, SCREEN_HEIGHT - 30))
 
         # --- Attenzione rilevato ---
         if self.player.detected:
