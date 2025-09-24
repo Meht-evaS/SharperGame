@@ -36,7 +36,7 @@ ORANGE = (255, 140, 0)
 
 MAX_EQ_TRANSFORMATIONS = 2
 MAX_NOP_TRANSFORMATIONS = 5
-MAX_COMBO_TRANSFORMATIONS = 1
+MAX_COMBO_TRANSFORMATIONS = 2
 MAX_IBP_TRANSFORMATIONS = 2
 
 class TransformationType(Enum):
@@ -354,10 +354,18 @@ class Player:
             if self.rem_combo_transformations <= 0:
                 return None
             self.color = random.choice(colors)
-            self.ghost_steps = []
+            base_angle = math.atan2(self.dir[1], self.dir[0])
+            # make a round of NOP pulses in a circle (at least 10)
+            num_pulses = 10
+            for i in range(num_pulses):
+                ang = base_angle + (2 * math.pi * i / num_pulses)
+                cx = self.x + TILE_SIZE * 0.75
+                cy = self.y + TILE_SIZE * 0.75
+                game_ref.nop_pulses.append(NopPulse(cx, cy, ang))
+            self.ghost_steps = []            
             self.rem_combo_transformations -= 1
             return None
-
+        
         elif trans_type == TransformationType.POSITION_INDEPENDENT:
             if self.rem_ibp_transformations <= 0:
                 return None
