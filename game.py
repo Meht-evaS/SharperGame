@@ -1129,6 +1129,11 @@ un’unità centrale che gestisce il flusso del programma.
             self.player.x = 30
             self.player.y = 30
             if self.player.lives <= 0:
+                self.player.lives = 0  # Ci assicuriamo che sia visualizzato 0 prima del game over
+                # Aggiorna subito la UI per mostrare vite a 0
+                lives_text = self.font.render(f"Vite rimaste: {self.player.lives}", True, WHITE)
+                self.screen.blit(lives_text, (lives_x, lives_y))
+                pygame.display.flip()
                 game_over = self.font.render("GAME OVER! Premi R per riprovare o chiudi per uscire.", True, RED)
                 x = GAME_WIDTH//2 - game_over.get_width()//2
                 pygame.draw.rect(self.screen, BLACK, (x-10, SCREEN_HEIGHT//2 - 30, game_over.get_width()+20, 40))
